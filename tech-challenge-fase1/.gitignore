@@ -1,0 +1,17 @@
+# Ambientes Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Ferramentas e sistema
+.pytest_cache/
+.DS_Store
+.env
+
+# Dados brutos: disponibilizar o link no README
+/data/raw/*
+!/data/raw/.gitkeep
