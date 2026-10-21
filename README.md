@@ -181,16 +181,63 @@ Os gráficos podem ser reproduzidos com `python -m src.results_reporting`. Cliqu
 
 ## Docker
 
-O [Dockerfile](Dockerfile) utiliza `python:3.11-slim`, instala as dependências de `requirements.txt` e define como comando padrão `python -m src.check_environment`.
+O [Dockerfile](Dockerfile) utiliza `python:3.11-slim` e o diretório de trabalho `/app`. Primeiro copia `requirements.txt` e instala as dependências; depois copia o código do projeto. O arquivo `.dockerignore` exclui `data/raw/*`, mantendo o dataset fora da imagem.
 
-Na raiz do projeto, com Docker instalado e em execução:
+O comando padrão é `python -m src.check_environment`. Os comandos abaixo sobrescrevem esse padrão para executar cada módulo, sem alterar a imagem.
+
+### Construção e verificação do ambiente
+
+No Windows, abra o PowerShell na raiz do projeto, com Docker Desktop em execução e configurado para contêineres Linux. Não é necessário ativar o ambiente virtual Python local.
 
 ```powershell
 docker build -t breast-cancer-wisconsin .
-docker run --rm breast-cancer-wisconsin
+docker run --rm breast-cancer-wisconsin python -m src.check_environment
 ```
 
-Esse comando verifica as dependências e exibe suas versões. O treinamento, a avaliação e a geração de gráficos não são executados automaticamente. O arquivo `.dockerignore` exclui `data/raw/*` da imagem; a execução de análises em contêiner exige disponibilizar o CSV separadamente. As instruções de execução dos módulos acima correspondem ao ambiente Python local.
+### Dataset e execução dos módulos
+
+Disponibilize `data/raw/data.csv` conforme a seção [Dataset](#dataset). Na mesma sessão do PowerShell, resolva os diretórios locais:
+
+```powershell
+$dataPath = (Resolve-Path -LiteralPath '.\data\raw').Path
+$resultsPath = (Resolve-Path -LiteralPath '.\results').Path
+```
+
+O bind mount conecta `data/raw/` a `/app/data/raw` com `readonly`: o contêiner pode ler o CSV, mas não alterá-lo. As aspas preservam caminhos do Windows que contêm espaços.
+
+**Preparação dos dados:**
+
+```powershell
+docker run --rm --mount "type=bind,source=$dataPath,target=/app/data/raw,readonly" breast-cancer-wisconsin python -m src.data_preparation
+```
+
+**Treinamento e comparação na validação:**
+
+```powershell
+docker run --rm --mount "type=bind,source=$dataPath,target=/app/data/raw,readonly" breast-cancer-wisconsin python -m src.model_training
+```
+
+**Avaliação final da Regressão Logística e interpretabilidade:**
+
+```powershell
+docker run --rm --mount "type=bind,source=$dataPath,target=/app/data/raw,readonly" breast-cancer-wisconsin python -m src.model_evaluation
+```
+
+**Geração dos cinco gráficos:**
+
+```powershell
+docker run --rm --mount "type=bind,source=$dataPath,target=/app/data/raw,readonly" --mount "type=bind,source=$resultsPath,target=/app/results" breast-cancer-wisconsin python -m src.results_reporting
+```
+
+O segundo bind mount permite gravar em `/app/results`. Os PNGs ficam disponíveis na pasta local `results/`, inclusive após a remoção do contêiner, e substituem os arquivos de mesmo nome. A renderização não exige interface gráfica. A Random Forest é avaliada somente na validação; o teste é utilizado apenas pela Regressão Logística selecionada.
+
+### Testes automatizados
+
+```powershell
+docker run --rm --mount "type=bind,source=$dataPath,target=/app/data/raw,readonly" breast-cancer-wisconsin python -m unittest discover -s tests -v
+```
+
+A execução foi validada no Docker Desktop com Python 3.11: os 26 testes passaram, as métricas reproduziram os resultados documentados e os cinco gráficos foram gerados no diretório local. O dataset permaneceu fora da imagem e montado somente para leitura. Os testes emitiram um aviso de depreciação do SciPy sobre opções do otimizador, sem falhas.
 
 ## Limitações
 
