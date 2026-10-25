@@ -3,10 +3,8 @@
 **Relatório técnico acadêmico — Tech Challenge, Fase 1**
 
 - **Instituição:** FIAP
-- **Autores e registros acadêmicos:** a informar
-- **Curso e turma:** a informar
-- **Docente ou orientador:** a informar
-- **Local e data de entrega:** a informar
+- **Autor:** Caio Locoselli
+- **RM:** 378059
 
 ## 1. Introdução e objetivo
 
@@ -199,7 +197,3 @@ As referências abaixo identificam as fontes efetivamente utilizadas nesta vers�
 5. **Avaliação final e interpretabilidade.** [model_evaluation.py](../src/model_evaluation.py). Avaliação da Regressão Logística e análises de importância.
 6. **Resultados visuais do projeto.** [Diretório results/](../results/). Gráficos existentes de validação, teste, coeficientes e permutação.
 7. **Kaggle.** [Breast Cancer Wisconsin (Diagnostic) Data Set](https://www.kaggle.com/datasets/uciml/breast-cancer-wisconsin-data/data). Página de disponibilização do dataset indicada na documentação do projeto.
-
-### 10.3. Informações acadêmicas pendentes
-
-Antes da entrega, devem ser informados os nomes dos autores e registros acadêmicos, curso, turma, docente ou orientador, local e data de entrega. Também devem ser confirmadas as exigências institucionais de capa, formatação e apresentação das referências. Esses dados não foram presumidos nesta versão.
