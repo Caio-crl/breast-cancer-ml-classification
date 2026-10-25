@@ -73,6 +73,8 @@ A separação utiliza `train_test_split`, com estratificação pelo diagnóstico
 
 As quantidades refletem o arredondamento para registros inteiros. Os índices originais são preservados, permitindo verificar que não há sobreposição entre os conjuntos.
 
+A divisão estratificada de 60% para treinamento, 20% para validação e 20% para teste foi adotada para permitir a comparação dos classificadores e preservar um conjunto separado para a avaliação final. Essa distribuição oferece uma quantidade razoável de registros para cada etapa, mas também limita o número de exemplos disponíveis para o aprendizado, especialmente os casos malignos. Não foram comparadas diferentes proporções de divisão, portanto não é possível afirmar que essa configuração seja a ideal. Uma base maior e avaliações adicionais poderiam fornecer estimativas de desempenho mais robustas.
+
 O módulo [src/model_training.py](../src/model_training.py) [4] integra pré-processamento e classificador com `Pipeline`. As configurações explícitas são:
 
 | Classificador | Configuração |
