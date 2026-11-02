@@ -8,3 +8,26 @@ __pycache__
 .pytest_cache
 .env
 data/raw/*
+
+# Computer Vision: dados, arquivos compactados, pesos e ambientes locais
+data/vision/
+artifacts/vision/
+**/.venv-vision/
+**/venv-vision/
+**/*.zip
+**/*.tar
+**/*.tar.gz
+**/*.tgz
+**/*.gz
+**/*.bz2
+**/*.xz
+**/*.7z
+**/*.rar
+**/*.pt
+**/*.pth
+**/*.ckpt
+**/*.safetensors
+**/*.onnx
+**/*.h5
+**/*.hdf5
+**/*.keras

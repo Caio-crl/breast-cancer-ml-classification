@@ -2,6 +2,8 @@
 
 Projeto acadêmico do Tech Challenge da FIAP que utiliza o dataset Breast Cancer Wisconsin Diagnostic para classificar amostras de tumores de mama como benignas ou malignas. O trabalho explora Machine Learning como apoio à análise de dados médicos, abrangendo análise exploratória, preparação dos dados, comparação de classificadores, avaliação final e interpretabilidade.
 
+A entrega extra de **Computer Vision** utiliza recortes de massas mamárias do CBIS-DDSM e uma MobileNetV3 Small. Consulte a [metodologia, reprodução e resultados de visão computacional](docs/computer_vision.md). Os dois módulos utilizam bases e tarefas diferentes; suas métricas não são diretamente comparáveis.
+
 > **Uso acadêmico:** o projeto não é uma ferramenta de diagnóstico clínico. Seus resultados não substituem a avaliação médica.
 
 ## Tecnologias
@@ -178,6 +180,24 @@ Os gráficos podem ser reproduzidos com `python -m src.results_reporting`. Cliqu
 **Permutação na validação:** dez maiores médias de queda de Recall; barras de erro representam o desvio padrão das repetições.
 
 <a href="results/permutation_importance.png"><img src="results/permutation_importance.png" alt="Importância por permutação medida pelo Recall na validação" width="680"></a>
+
+## Computer Vision — classificação de recortes mamários
+
+O módulo independente em `src/vision/` utiliza o [CBIS-DDSM público no Kaggle](https://www.kaggle.com/datasets/awsaf49/cbis-ddsm-breast-cancer-image-dataset), com 1.696 recortes ROI de massas. A separação por paciente resultou em 1.049 imagens de treino, 269 de validação e 378 de teste, sem pacientes compartilhados entre partições.
+
+A MobileNetV3 Small utiliza transferência de aprendizado com pesos ImageNet e extrator congelado. O checkpoint `best_epoch_004.pt`, selecionado pelo F1 maligno de validação, foi avaliado no teste oficial por argmax dos logits, sem novo treinamento ou ajuste de limiar, em GPU Tesla T4.
+
+| Accuracy | Precision (maligno) | Recall (maligno) | F1-score (maligno) |
+|---:|---:|---:|---:|
+| 0,6005 | 0,4919 | 0,8231 | 0,6158 |
+
+Matriz de confusão: `[[106, 125], [26, 121]]`, na ordem `[[TN, FP], [FN, TP]]`, com linhas reais e colunas previstas, benigno antes de maligno. Os **26 falsos negativos** correspondem a recortes malignos classificados como benignos; os **125 falsos positivos**, a benignos classificados como malignos. O Recall deve ser interpretado junto a esses erros e à Precision. **O experimento não permite aplicação clínica.**
+
+- [Documentação completa e resultados sem arredondamento](docs/computer_vision.md).
+- [Notebook de treinamento](notebooks/vision_training_colab.ipynb): registro reproduzível do procedimento; não é necessário treinar novamente para avaliar o checkpoint existente.
+- [Notebook de avaliação independente](notebooks/vision_evaluation_colab.ipynb): restauração do checkpoint, inferência no teste e exportação de métricas e matriz.
+
+Use um ambiente separado com PyTorch/torchvision; [requirements-vision.txt](requirements-vision.txt) registra as dependências de referência. O Docker e o `requirements.txt` principal atendem ao módulo tabular. Dados, manifestos, pacotes ZIP, checkpoints e resultados de visão permanecem fora do Git e do contexto Docker.
 
 ## Docker
 
