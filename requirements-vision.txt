@@ -1,0 +1,6 @@
+# Ambiente separado de visão; não incluir no requirements.txt tabular.
+# Par oficial compatível: https://pytorch.org/get-started/previous-versions/#v2-7-1
+torch==2.7.1
+torchvision==0.22.1
+pandas==2.2.3
+Pillow>=11.0,<14
