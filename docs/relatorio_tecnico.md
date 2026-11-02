@@ -5,6 +5,8 @@
 - **Instituição:** FIAP
 - **Autor:** Caio Locoselli
 - **RM:** 378059
+- **Repositório:** [https://github.com/Caio-crl/breast-cancer-ml-classification](https://github.com/Caio-crl/breast-cancer-ml-classification)
+- **Vídeo de demonstração:** [URL PENDENTE]
 
 ## 1. Introdução e objetivo
 
@@ -12,7 +14,9 @@ A classificação de dados médicos permite investigar relações entre caracter
 
 O objetivo foi desenvolver um fluxo reproduzível de análise exploratória, preparação dos dados, treinamento e comparação de dois classificadores: Regressão Logística e Random Forest. Após a comparação na validação, a Regressão Logística foi selecionada para avaliação final no teste e análise de interpretabilidade.
 
-O trabalho tem finalidade educacional. O modelo não constitui uma ferramenta de diagnóstico clínico, e os resultados não substituem a avaliação médica. A descrição metodológica se apoia no código e nas análises do repositório [1–5]; as figuras são os arquivos já disponíveis em `results/` [6].
+Como entrega adicional de Computer Vision, foi implementada uma classificação binária de recortes de massas mamárias do CBIS-DDSM com MobileNetV3 Small e transferência de aprendizado. A abordagem utiliza imagens e uma população de dados distinta da base tabular. Sua preparação, treinamento e avaliação independente estão documentados na seção 10 e nas fontes do projeto [8–15]. As métricas das duas tarefas não são diretamente comparáveis.
+
+O trabalho tem finalidade educacional. O modelo não constitui uma ferramenta de diagnóstico clínico, e os resultados não substituem a avaliação médica. A descrição metodológica se apoia no código e nas análises do repositório [1–5]; as figuras tabulares são os arquivos já disponíveis em `results/` [6].
 
 ## 2. Descrição do dataset Breast Cancer Wisconsin Diagnostic
 
@@ -176,9 +180,85 @@ A reprodutibilidade é apoiada por divisões e modelos com estados aleatórios d
 
 O estudo não avaliou aplicação prospectiva, integração com decisões assistenciais ou desempenho em outras populações. Portanto, suas conclusões se restringem ao experimento acadêmico documentado.
 
-## 10. Conclusão e referências
+Essas ressalvas também se aplicam à classificação de imagens apresentada a seguir. As duas abordagens permitem discutir preparação de dados, independência das partições e diferentes tipos de erro, mas não sustentam comparação direta de desempenho: o estudo tabular utiliza medidas numéricas do Wisconsin Diagnostic, enquanto a CNN utiliza recortes de massas do CBIS-DDSM, com amostras e unidades de análise diferentes.
 
-### 10.1. Conclusão
+## 10. Computer Vision: classificação de recortes de massas mamárias
+
+### 10.1. Objetivo e dataset
+
+O experimento adicional teve como objetivo classificar recortes ROI (regiões de interesse) de massas mamárias como benignos ou malignos. Foi utilizado o dataset público **CBIS-DDSM**, na disponibilização de awsaf49 no Kaggle [8], com metodologia e resultados registrados na documentação de Computer Vision [9–11]. O modelo recebe uma lesão previamente localizada: não realiza detecção em mamografias completas nem representa um sistema de rastreamento.
+
+Foram selecionados **1.696 recortes de massas, correspondentes a 892 pacientes**. Os rótulos originais `BENIGN` e `BENIGN_WITHOUT_CALLBACK` foram agrupados na classe **benigno = 0**; `MALIGNANT` corresponde à classe **maligno = 1**. A seleção usa os metadados de conversão para identificar especificamente `cropped images`, distinguindo recortes, máscaras e mamografias completas. Não são utilizadas imagens de calcificações ou máscaras como entradas.
+
+O inspetor exige associação única entre registro e JPG, com verificações de UID, paciente, caso, caminho e existência do arquivo [12]. Não associa imagens pela ordem das linhas ou somente pelo nome final. Os 1.696 arquivos selecionados foram abertos e decodificados com Pillow, com dimensões válidas e modo original em escala de cinza. A auditoria SHA-256 não encontrou duplicatas exatas. Essa auditoria verifica bytes e decodificação, mas não equivale a revisão radiológica ou comprovação dos diagnósticos.
+
+### 10.2. Separação por paciente e preparação das imagens
+
+O teste oficial foi preservado integralmente, após a confirmação de que seus pacientes não aparecem no treino oficial. O treino oficial foi separado em treinamento e validação, com aproximadamente 80% e 20% dos pacientes, respectivamente, e seed 42. A estratégia considera pacientes com diagnósticos benignos, malignos ou mistos e busca equilíbrio de classes usando somente informações do treino oficial. Todas as lesões de um paciente permanecem na mesma partição, sem forçar proporções exatas de imagens.
+
+| Partição | Imagens | Pacientes | Benignas (0) | Malignas (1) |
+|---|---:|---:|---:|---:|
+| Treinamento | 1.049 | 552 | 542 | 507 |
+| Validação | 269 | 139 | 139 | 130 |
+| Teste oficial | 378 | 201 | 231 | 147 |
+| Total | 1.696 | 892 | 912 | 784 |
+
+Não há pacientes compartilhados entre as partições. Os manifestos registram identificadores de paciente e caso, caminho relativo, diagnóstico, rótulo, origem oficial, partição final, dimensões, modo e SHA-256. Imagens e manifestos são mantidos fora do Git; os caminhos relativos permitem mudar a raiz do dataset entre ambiente local e Google Colab sem editar os registros [12].
+
+O Dataset carrega cada JPG sob demanda e converte cinza para RGB de três canais. O redimensionamento preserva a proporção e utiliza padding preto para obter **224 × 224 pixels**, sem corte aleatório da lesão. Apenas no treinamento é aplicada rotação leve de até ±5°, com canvas expandido; validação e teste são determinísticos. Os tensores utilizam normalização RGB ImageNet, com média `[0.485, 0.456, 0.406]` e desvio padrão `[0.229, 0.224, 0.225]`. O padding é uma escolha do projeto para preservar o recorte, em lugar do center crop padrão da biblioteca [10, 13, 16].
+
+### 10.3. Arquitetura, treinamento e seleção do checkpoint
+
+A arquitetura utilizada foi **MobileNetV3 Small**, implementada em PyTorch/torchvision, com pesos pré-treinados ImageNet `IMAGENET1K_V1` [13, 16]. A camada final foi substituída por uma saída de dois logits. O backbone e suas estatísticas BatchNorm permaneceram congelados, enquanto a cabeça classificadora foi treinada de forma supervisionada. Não foi realizado fine-tuning do extrator.
+
+O treinamento foi realizado no Google Colab com GPU Tesla T4, conforme a execução concluída do experimento. O procedimento está descrito no código e no notebook de treinamento [11, 14]. Utilizou-se CrossEntropyLoss e otimizador AdamW, com learning rate 0,001, weight decay 0,0001, lote 8, seed 42 e limite de 10 épocas. O early stopping adotou paciência de três épocas e melhora mínima de 0,0001 no F1 da classe maligna na validação. O teste não participou do treinamento, da escolha do checkpoint ou do ajuste de hiperparâmetros.
+
+O melhor checkpoint foi **`best_epoch_004.pt`**, selecionado na **época 4** pelo F1 de validação; o early stopping ocorreu na época 7. Na validação, foram registrados Accuracy de 0,6283, Precision de 0,5852, Recall de 0,7923 e F1-score de 0,6732 para a classe maligna. Esses números são resultados de validação e não devem ser confundidos com a avaliação final de teste.
+
+O carregamento inicial dos pesos oficiais é verificado antes de treinar, sem alternativa silenciosa para um extrator aleatório congelado. O checkpoint treinado preserva o estado completo do modelo e seus metadados. A avaliação final reconstrói a arquitetura e carrega estritamente esse estado antes de qualquer inferência; não utiliza uma rede aleatória [13–15].
+
+### 10.4. Avaliação independente no teste oficial
+
+A avaliação foi realizada no Google Colab com **GPU Tesla T4**, utilizando exclusivamente as **378 imagens do teste oficial**, com 231 recortes benignos e 147 malignos. O modelo foi colocado em `eval()`, sem cálculo de gradientes, utilizando as transformações determinísticas de avaliação. A predição é definida diretamente pelo maior dos dois logits (**argmax**), com classe maligna = 1. Não houve novo treinamento nem ajuste de limiar com base no teste [15].
+
+| Accuracy | Precision (maligno) | Recall (maligno) | F1-score (maligno) |
+|---:|---:|---:|---:|
+| 60,05% | 49,19% | 82,31% | 61,58% |
+
+A matriz de confusão foi **`[[106, 125], [26, 121]]`**, na ordem `[[TN, FP], [FN, TP]]`. As linhas representam diagnósticos reais e as colunas, previsões, sempre na ordem benigno (0), maligno (1).
+
+| Diagnóstico real | Previsto benigno (0) | Previsto maligno (1) |
+|---|---:|---:|
+| Benigno (0) | 106 — verdadeiros negativos | 125 — falsos positivos |
+| Maligno (1) | 26 — falsos negativos | 121 — verdadeiros positivos |
+
+![Representação da matriz de confusão da MobileNetV3 Small no teste oficial](figures/vision_confusion_matrix.png)
+
+*Figura 6 — Representação dos resultados da avaliação independente: 106 verdadeiros negativos, 125 falsos positivos, 26 falsos negativos e 121 verdadeiros positivos. Linhas: diagnóstico real; colunas: previsão. Fonte: contagens da avaliação concluída no Google Colab, registradas na documentação do projeto [9]; visualização elaborada para este relatório, sem nova inferência.*
+
+Os percentuais foram arredondados a duas casas decimais. Sua coerência com as contagens pode ser conferida pelas expressões: Accuracy = `(106 + 121) / 378`; Precision = `121 / (121 + 125)`; Recall = `121 / (121 + 26)`; F1 = `2 × 121 / (2 × 121 + 125 + 26)`. Os valores sem arredondamento estão registrados na documentação do experimento [9].
+
+### 10.5. Discussão dos erros e limitações
+
+O modelo identificou **121 dos 147 recortes malignos**, mas classificou **26 malignos como benignos** e **125 benignos como malignos**. Os falsos negativos correspondem a 17,69% dos recortes malignos avaliados e evidenciam que um resultado benigno previsto não permite excluir malignidade. Os falsos positivos correspondem a 54,11% dos recortes benignos; entre as 246 previsões malignas, apenas 121 eram efetivamente malignas, coerentemente com a Precision de 49,19%.
+
+O Recall de 82,31% deve, portanto, ser interpretado junto à quantidade de falsos negativos, à baixa Precision e ao número de falsos positivos. Em uma aplicação assistencial não validada, esses tipos de erro poderiam produzir falsa segurança ou investigações desnecessárias. Esses são riscos potenciais, e não desfechos clínicos medidos pelo projeto. Não houve investigação individual dos erros que permita atribuir suas causas a características específicas das lesões.
+
+As métricas são **por recorte ROI, não por paciente ou exame**. A avaliação utiliza uma única divisão e um único treinamento, sem validação externa, estudo prospectivo, calibração ou intervalos de confiança. A ausência de vazamento por paciente e a verificação dos hashes apoiam a integridade do experimento, mas não demonstram generalização para outras populações ou equipamentos. O hash detecta somente duplicatas exatas, sem auditoria de similaridade perceptual.
+
+A conversão de escala de cinza para RGB não acrescenta informação radiológica. O redimensionamento pode limitar a resolução de detalhes, e o experimento não mediu separadamente o efeito de cada transformação. O backbone pré-treinado em ImageNet fornece uma inicialização de transferência de aprendizado, mas não comprova adequação à tarefa médica. Não foram realizados novos treinamentos ou fine-tuning após a avaliação final para escolher resultados com base no teste.
+
+Os resultados da CNN não devem ser comparados diretamente às métricas da Regressão Logística: foram utilizados datasets, representações, amostras e unidades de análise diferentes. Em ambas as abordagens, a presença de falsos negativos exige cautela. **Nenhum dos modelos tem adequação demonstrada para uso clínico, diagnóstico autônomo ou substituição da avaliação médica.**
+
+### 10.6. Reprodução e preservação dos resultados
+
+O repositório contém notebooks separados para verificação da infraestrutura, treinamento e avaliação final [11, 14, 15]. Para reproduzir a inferência, não é necessário repetir o treinamento: devem ser disponibilizados no Drive o pacote com os recortes e manifestos preservados e o checkpoint `run_001/best_epoch_004.pt`. O notebook de avaliação verifica o ambiente, monta o Drive, extrai somente o teste, confere hashes, restaura o checkpoint e executa inferência. CUDA é utilizada quando disponível, com CPU como alternativa.
+
+Os resultados agregados são salvos em um diretório novo e separado do treinamento: métricas em JSON, matriz de confusão em PNG e relatório em Markdown. Não são incluídas imagens individuais ou informações de pacientes nesses resultados. Dados, manifestos, pesos, checkpoints e pacotes compactados permanecem fora do versionamento. Os números deste relatório correspondem à execução concluída, e a Figura 6 representa fielmente suas contagens; não foi realizada nova avaliação para produzi-la.
+
+## 11. Conclusão e referências
+
+### 11.1. Conclusão
 
 O projeto implementou um fluxo reproduzível de classificação binária, desde a exploração e validação dos dados até a avaliação final e a interpretação do modelo. A comparação na validação favoreceu a Regressão Logística, selecionada antes da avaliação no teste, especialmente pelo maior Recall da classe maligna.
 
@@ -186,9 +266,13 @@ Na avaliação final, o modelo obteve Accuracy de 0,9649, Precision de 1,0000, R
 
 Os resultados atendem ao objetivo acadêmico de comparar classificadores e discutir seus erros e limitações. Eles não sustentam uso diagnóstico autônomo nem substituem avaliação médica ou validação clínica.
 
-### 10.2. Referências
+A entrega adicional de Computer Vision ampliou o projeto para imagens, com preparação auditada de 1.696 recortes de massas, separação por paciente e avaliação independente da MobileNetV3 Small. No teste oficial, a CNN obteve Accuracy de 60,05%, Precision maligna de 49,19%, Recall maligno de 82,31% e F1-score maligno de 61,58%, identificando 121 dos 147 recortes malignos. Os 26 falsos negativos e 125 falsos positivos delimitam o alcance desses resultados e impedem concluir adequação clínica.
 
-As referências abaixo identificam as fontes efetivamente utilizadas nesta versão: a documentação e os artefatos do projeto, além da página do dataset indicada no README.
+As duas abordagens demonstram fluxos reproduzíveis e escolhas metodológicas distintas, com preservação do teste para a avaliação final de modelos previamente selecionados. Essa integração não estabelece superioridade entre dados tabulares e imagens, pois os experimentos utilizam bases diferentes. A contribuição acadêmica está na implementação, na documentação dos procedimentos e na discussão explícita dos erros, mantendo a avaliação médica e a necessidade de validação clínica como limites de qualquer aplicação futura.
+
+### 11.2. Referências
+
+As referências abaixo identificam as fontes utilizadas: documentação, código, notebooks e artefatos do projeto, as páginas dos datasets e a documentação da arquitetura.
 
 1. **Documentação do projeto.** [README.md](../README.md). Descrição do dataset, metodologia, resultados e execução local e por Docker.
 2. **Análise exploratória do projeto.** [exploratory_analysis.ipynb](../notebooks/exploratory_analysis.ipynb). Estatísticas descritivas, qualidade dos dados, distribuições e correlações.
@@ -197,3 +281,12 @@ As referências abaixo identificam as fontes efetivamente utilizadas nesta vers�
 5. **Avaliação final e interpretabilidade.** [model_evaluation.py](../src/model_evaluation.py). Avaliação da Regressão Logística e análises de importância.
 6. **Resultados visuais do projeto.** [Diretório results/](../results/). Gráficos existentes de validação, teste, coeficientes e permutação.
 7. **Kaggle.** [Breast Cancer Wisconsin (Diagnostic) Data Set](https://www.kaggle.com/datasets/uciml/breast-cancer-wisconsin-data/data). Página de disponibilização do dataset indicada na documentação do projeto.
+8. **Kaggle — awsaf49.** [CBIS-DDSM: Breast Cancer Image Dataset](https://www.kaggle.com/datasets/awsaf49/cbis-ddsm-breast-cancer-image-dataset). Disponibilização pública utilizada para os recortes de massas e os metadados.
+9. **Documentação de Computer Vision.** [computer_vision.md](computer_vision.md). Dataset, metodologia, partições, resultados finais, reprodução e limitações.
+10. **Infraestrutura de imagens e modelo.** [vision_infrastructure.md](vision_infrastructure.md). Dataset, transformações, DataLoaders e arquitetura.
+11. **Guias de treinamento e verificação no Colab.** [vision_training.md](vision_training.md) e [vision_colab_validation.md](vision_colab_validation.md). Configuração, pesos, checkpoints e validação técnica.
+12. **Inspeção e preparação de imagens.** [inspect_dataset.py](../src/vision/inspect_dataset.py) e [prepare_manifest.py](../src/vision/prepare_manifest.py). Associação dos recortes, auditoria de integridade e partições por paciente.
+13. **Dataset e modelo de imagens.** [dataset.py](../src/vision/dataset.py) e [model.py](../src/vision/model.py). Carregamento, normalização, MobileNetV3 Small e pesos.
+14. **Treinamento supervisionado.** [training.py](../src/vision/training.py) e [vision_training_colab.ipynb](../notebooks/vision_training_colab.ipynb). Treinamento, seleção por validação e checkpoints.
+15. **Avaliação independente.** [evaluation.py](../src/vision/evaluation.py) e [vision_evaluation_colab.ipynb](../notebooks/vision_evaluation_colab.ipynb). Inferência no teste, métricas, matriz de confusão e relatório agregado.
+16. **PyTorch/torchvision.** [MobileNetV3 Small](https://docs.pytorch.org/vision/stable/models/generated/torchvision.models.mobilenet_v3_small.html). Arquitetura, pesos ImageNet e parâmetros de normalização.
