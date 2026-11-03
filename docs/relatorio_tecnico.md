@@ -6,7 +6,7 @@
 - **Autor:** Caio Locoselli
 - **RM:** 378059
 - **Repositório:** [https://github.com/Caio-crl/breast-cancer-ml-classification](https://github.com/Caio-crl/breast-cancer-ml-classification)
-- **Vídeo de demonstração:** [URL PENDENTE]
+- **Vídeo de demonstração:** https://youtu.be/1tNlBcnMVzc
 
 ## 1. Introdução e objetivo
 

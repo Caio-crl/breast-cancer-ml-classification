@@ -123,7 +123,8 @@ def build_html(source, ref):
             f'<div class="challenge">Tech Challenge — Fase 1</div><h1>{html.escape(title)}</h1>'
             f'<div class="subtitle">{html.escape(subtitle)}</div><div class="identity">{markdown(identity)}</div>'
             f'<div class="cover-links"><p><a href="{html.escape(repository)}">{html.escape(repository)}</a></p>'
-            f'<p>Vídeo de demonstração: {html.escape(video)}</p></div></section><main>{body}</main></body></html>')
+            f'<p>Vídeo de demonstração: <a href="{html.escape(video, quote=True)}">{html.escape(video)}</a></p>'
+            f'</div></section><main>{body}</main></body></html>')
 
 
 def main():
